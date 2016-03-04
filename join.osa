@@ -1,0 +1,110 @@
+#!/usr/bin/osascript
+
+on run(input)
+  if input = {} then
+    set channel to ""
+  else
+    set channel to (first item of input)
+  end if
+  tell application "Google Chrome"
+    execute window "Google Hangouts"'s active tab javascript "
+    var defaultChannel = 'edanaher';
+    var currentChannel = document.location.pathname.split('/').pop();
+
+    var click = function(elem) {
+      elem.dispatchEvent(new MouseEvent('mousedown'));
+      setTimeout(function() { elem.dispatchEvent(new MouseEvent('mouseup')) }, 50);
+    };
+
+    var leaveCall = document.querySelector(\"div[data-tooltip='Leave call']\");
+    if(leaveCall)
+      click(leaveCall);
+
+    var chooseMeeting = function(which) {
+      var meetings = document.querySelectorAll('.c-b.d-Hb.z-b.LKzyN');
+
+      console.log('Picking meeting...', which);
+      if(which)
+        return meetings[which];
+
+      var now = new Date();
+      now = ((now.getTime() / 60000) - now.getTimezoneOffset()) % 1440
+      for(var i = 0; i < meetings.length; i++) {
+        var meetingName = meetings[i].firstChild.lastChild.lastChild.innerHTML;
+        if(meetingName == 'no video call specified')
+          continue;
+        var timeString = meetings[i].firstChild.firstChild.innerHTML;
+        console.log(timeString);
+        var matches = timeString.match(/([0-9]+):([0-9]+) ([apAP])[mM]/);
+        console.log('matches are', matches, 'for', timeString);
+        var time = parseInt(matches[1]) * 60 + parseInt(matches[2]);  // minutes since midnight
+        if(matches[3] == 'P' || matches[3] == 'p')
+          time += 12 * 60;
+        console.log('testing:', now, time);
+        if(time - now < 10 || now - time > 15)
+          return meetings[i];
+      }
+      return null
+    };
+
+    var joinChannel = function(channel) {
+      var hangoutNameInput = document.querySelector(\"input[aria-label='Start or join Hangout']\");
+      if(!hangoutNameInput)
+        hangoutNameInput = document.querySelector(\"input[aria-label='Enter a Hangout name']\");
+      var joinButton = document.querySelector(\"button[aria-label='Join Hangout']\");
+
+      if(hangoutNameInput && joinButton) {
+        hangoutNameInput.value = channel
+        click(joinButton);
+      } else {
+        alert('Unable to join hangout!');
+      }
+    }
+
+    var joinHangout = function(tries) {
+
+      var joinButton = document.querySelector(\"button[aria-label='Join Hangout']\");
+      if(!joinButton) {
+        setTimeout(function() { joinHangout(tries + 1); }, 200);
+        return;
+      }
+
+
+      var argChannel = '" & channel & "';
+      var argMeeting = null;
+      if(parseInt(argChannel) < 0) {
+        argMeeting = -parseInt(argChannel) - 1;
+        argChannel = '';
+      }
+
+      var meeting = chooseMeeting(argMeeting);
+      var meetingName = null
+      if(meeting) {
+        meetingName = meeting.firstChild.lastChild.lastChild.innerHTML;
+      }
+
+      console.log('currentChannel:', currentChannel, '; argChannel:', argChannel, '; argMeeting:', argMeeting, '; meetingName:', meetingName, '; meeting:', meeting);
+
+      console.log('trying', tries)
+      if(argMeeting && meeting) {
+        click(meeting);
+      } else if(argChannel) {
+        joinChannel(argChannel);
+      } else if(meeting && meetingName != currentChannel) {
+        click(meeting);
+      } else {
+        joinChannel(defaultChannel);
+      }
+
+      if(tries > 100) {
+        alert('failed to join hangout');
+        return;
+      }
+
+
+    };
+
+    joinHangout(0);
+    "
+  end tell
+end

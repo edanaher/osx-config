@@ -1,0 +1,12 @@
+  tell application "Google Chrome"
+      execute window "Google Hangouts"'s active tab javascript "
+        var mute = document.querySelector(\"div[data-tooltip='Mute microphone']\");
+          if(!mute)
+        mute = document.querySelector(\"div[data-tooltip='Unmute microphone']\");
+          if(mute) {
+                 mute.dispatchEvent(new MouseEvent(\"mousedown\"));
+                      setTimeout(function() { mute.dispatchEvent(new MouseEvent(\"mouseup\")) }, 500);
+                        }"
+    
+    
+  end tell
